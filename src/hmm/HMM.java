@@ -8,19 +8,27 @@ package hmm;
 import DataStructures.TimeSeriesClassificationData;
 import Util.MatrixDouble;
 import static hmm.HMMModelTipes.*;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  *
  * @author Пользователь
  */
-public class HMM {
+public class HMM implements Serializable{
 
     //Variables for all the HMMs
     protected boolean trained = false;
+    protected boolean useScaling = false;
     protected int numStates = 5;			//The number of states for each model
     protected int numSymbols = 10;		//The number of symbols for each model
     protected int numInputDimensions = 0;
+//    protected int numOutputDimensions = 0;
+//    protected int numTrainingIterationsToConverge;
     protected int numClasses;
     protected int predictedClassLabel;
     protected HMMModelTipes modelType = LEFTRIGHT;         //Set if the model is ERGODIC or LEFTRIGHT
@@ -313,5 +321,395 @@ public class HMM {
 
     private double antilog(double d) {
         return Math.exp(d);
+    }
+
+    public boolean loadModelFromFile(String file) throws IOException {
+        clear();
+
+        BufferedReader reader;
+
+        try {
+            reader = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException ex) {
+            System.err.println("loadDatasetFromFile(String filename) - FILE NOT OPEN!");
+            return false;
+        }
+
+        String word;
+        double value;
+
+        //Find the file type header
+        word = reader.readLine();
+        if (!word.contains("HMM_MODEL_FILE_V2.0")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find Model File Header!");
+            return false;
+        }
+
+        //Load the trained state
+        word = reader.readLine();
+        if (!word.contains("Trained:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read Trained header!");
+            return false;
+        }
+
+        String[] buf = word.split(" ");
+        trained = (Integer.parseInt(buf[1]) == 1);
+
+        //Load the scaling state
+        word = reader.readLine();
+        if (!word.contains("UseScaling:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read UseScaling header!");
+            return false;
+        }
+        buf = word.split(" ");
+        useScaling = (Integer.parseInt(buf[1]) == 1);
+
+        //Load the NumInputDimensions
+        word = reader.readLine();
+        if (!word.contains("NumInputDimensions:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NumInputDimensions header!");
+            return false;
+        }
+        buf = word.split(" ");
+        numInputDimensions = Integer.parseInt(buf[1]);
+
+        //Load the NumOutputDimensions
+        word = reader.readLine();
+        if (!word.contains("NumOutputDimensions:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NumOutputDimensions header!");
+            return false;
+        }
+//        buf = word.split(" ");
+//        numOutputDimensions = Integer.parseInt(buf[1]);
+
+        //Load the numTrainingIterationsToConverge
+        word = reader.readLine();
+        if (!word.contains("NumTrainingIterationsToConverge:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NumTrainingIterationsToConverge header!");
+            return false;
+        }
+
+//        buf = word.split(" ");
+//        numTrainingIterationsToConverge = Integer.parseInt(buf[1]);
+        //Load the MinNumEpochs
+        word = reader.readLine();
+        if (!word.contains("MinNumEpochs:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read MinNumEpochs header!");
+            return false;
+        }
+
+//                buf = word.split(" ");
+//        min = Integer.parseInt(buf[1]);
+        //Load the maxNumEpochs
+        word = reader.readLine();
+        if (!word.contains("MaxNumEpochs:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read MaxNumEpochs header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);maxNumEpochs;
+
+        //Load the ValidationSetSize
+        word = reader.readLine();
+        if (!word.contains("ValidationSetSize:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read ValidationSetSize header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);validationSetSize;
+
+        //Load the LearningRate
+        word = reader.readLine();
+        if (!word.contains("LearningRate:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read LearningRate header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);learningRate;
+
+        //Load the MinChange
+        word = reader.readLine();
+        if (!word.contains("MinChange:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read MinChange header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);minChange;
+
+        //Load the UseValidationSet
+        word = reader.readLine();
+        if (!word.contains("UseValidationSet:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read UseValidationSet header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);useValidationSet;
+
+        //Load the RandomiseTrainingOrder
+        word = reader.readLine();
+        if (!word.contains("RandomiseTrainingOrder:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read RandomiseTrainingOrder header!");
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);randomiseTrainingOrder;
+
+        //Load if the number of clusters
+        word = reader.readLine();
+        if (!word.contains("UseNullRejection:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read UseNullRejection header!");
+            clear();
+            return false;
+        }
+        buf = word.split(" ");
+        useNullRejection = (Integer.parseInt(buf[1]) == 1);
+
+        //Load if the classifier mode
+        word = reader.readLine();
+        if (!word.contains("ClassifierMode:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read ClassifierMode header!");
+            clear();
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);classifierMode;
+        //Load if the null rejection coeff
+        word = reader.readLine();
+        if (!word.contains("NullRejectionCoeff:")) {
+            System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NullRejectionCoeff header!");
+            clear();
+            return false;
+        }
+//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);nullRejectionCoeff;
+
+        //If the model is trained then load the model settings
+        if (trained) {
+            //Load the number of classes
+            word = reader.readLine();
+            if (!word.contains("NumClasses:")) {
+                System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NumClasses header!");
+                clear();
+                return false;
+            }
+            buf = word.split(" ");
+            numClasses = Integer.parseInt(buf[1]);
+
+            //Load the null rejection thresholds
+            word = reader.readLine();
+            if (!word.contains("NullRejectionThresholds:")) {
+                System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read NullRejectionThresholds header!");
+                clear();
+                return false;
+            }
+            nullRejectionThresholds = new double[numClasses];
+            buf = word.split(" ");
+            System.out.println(word);
+            for (int i = 0; i < nullRejectionThresholds.length; i++) {
+
+                nullRejectionThresholds[i] = Integer.parseInt(buf[i + 1]);
+            }
+            //Load the class labels
+            word = reader.readLine();
+            if (!word.contains("ClassLabels:")) {
+                System.err.println("loadBaseSettingsFromFile(fstream &file) - Failed to read ClassLabels header!");
+                clear();
+                return false;
+            }
+            classLabels = new int[numClasses];
+            buf = word.split(" ");
+            for (int i = 0; i < classLabels.length; i++) {
+                classLabels[i] = Integer.parseInt(buf[i + 1]);
+            }
+
+            if (useScaling) {
+                //Load if the Ranges
+                word = reader.readLine();
+                if (!word.contains("Ranges:")) {
+                    System.err.println("loadClustererSettingsFromFile(fstream &file) - Failed to read Ranges header!");
+                    clear();
+                    return false;
+                }
+//                ranges.resize(numInputDimensions);
+//
+//                for (int i = 0; i < ranges.size(); i++) {
+//                            buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);ranges[i].minValue;
+//                            buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);ranges[i].maxValue;
+//                }
+            }
+        }
+        word = reader.readLine();
+        if (!word.contains("NumStates:")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find NumStates.");
+            return false;
+        }
+        buf = word.split(" ");
+        numStates = Integer.parseInt(buf[1]);
+
+        word = reader.readLine();
+        if (!word.contains("NumSymbols:")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find NumSymbols.");
+            return false;
+        }
+        buf = word.split(" ");
+        numSymbols = Integer.parseInt(buf[1]);
+
+        word = reader.readLine();
+        if (!word.contains("ModelType:")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find ModelType.");
+            return false;
+        }
+        buf = word.split(" ");
+        modelType = Integer.parseInt(buf[1]) == 0 ? ERGODIC : LEFTRIGHT;
+
+        word = reader.readLine();
+        if (!word.contains("Delta:")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find Delta.");
+            return false;
+        }
+        buf = word.split(" ");
+        delta = Integer.parseInt(buf[1]);
+
+        word = reader.readLine();
+        if (!word.contains("NumRandomTrainingIterations:")) {
+            System.err.println("loadModelFromFile( fstream &file ) - Could not find NumRandomTrainingIterations.");
+            return false;
+        }
+        buf = word.split(" ");
+        numRandomTrainingIterations = Integer.parseInt(buf[1]);;
+
+        //If the HMM has been trained then load the models
+        if (trained) {
+
+            //Resize the buffer
+            models.ensureCapacity(numClasses);
+
+            //Load each of the K classes
+            for (int k = 0; k < numClasses; k++) {
+                int modelID;
+                word = reader.readLine();
+                if (!word.contains("Model_ID:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find model ID for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                modelID = Integer.parseInt(buf[1]);
+
+                if (modelID - 1 != k) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Model ID does not match the current class ID for the " + (k + 1) + "th model");
+                    return false;
+                }
+                word = reader.readLine();
+                if (!word.contains("NumStates:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the NumStates for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.add(k, new HiddenMarkovModel());
+                models.get(k).numStates = Integer.parseInt(buf[1]);
+
+                System.out.println("Num states: " + numStates);
+                
+                word = reader.readLine();
+                if (!word.contains("NumSymbols:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the NumSymbols for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).numSymbols = Integer.parseInt(buf[1]);
+
+                word = reader.readLine();
+                if (!word.contains("ModelType:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the modelType for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).modelType = Integer.parseInt(buf[1]) == 0 ? ERGODIC : LEFTRIGHT;
+
+                word = reader.readLine();
+                if (!word.contains("Delta:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the Delta for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).delta = Integer.parseInt(buf[1]);
+
+                word = reader.readLine();
+                if (!word.contains("Threshold:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the Threshold for the " + (k + 1) + "th model");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).cThreshold = Integer.parseInt(buf[1]);
+
+                word = reader.readLine();
+                if (!word.contains("NumRandomTrainingIterations:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the numRandomTrainingIterations for the " + (k + 1) + "th model.");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).numRandomTrainingIterations = Integer.parseInt(buf[1]);
+
+                word = reader.readLine();
+                if (!word.contains("MaxNumIter:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the MaxNumIter for the " + (k + 1) + "th model.");
+                    return false;
+                }
+                buf = word.split(" ");
+                models.get(k).maxNumIter = Integer.parseInt(buf[1]);
+
+                models.get(k).a.resize(models.get(k).numStates, models.get(k).numStates);
+                models.get(k).b.resize(models.get(k).numStates, models.get(k).numSymbols);
+                models.get(k).pi = new double[models.get(k).numStates];
+
+                word = reader.readLine();
+                //Load the A, B and Pi matrices
+                if (!word.contains("A:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the A matrix for the " + (k + 1) + "th model.");
+                    return false;
+                }
+
+                //Load A
+                models.get(k).a.resize(models.get(k).numStates, models.get(k).numStates);
+                for (int i = 0; i < models.get(k).numStates; i++) {
+                    word = reader.readLine();
+                    System.out.println(word);
+                    buf = word.split("\t");
+                    for (int j = 0; j < models.get(k).numStates; j++) {
+                        value = Double.parseDouble(buf[j]);
+                        models.get(k).a.set(value, i, j);
+                    }
+                }
+                word = reader.readLine();
+                if (!word.contains("B:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the B matrix for the " + (k + 1) + "th model.");
+                    return false;
+                }
+
+                //Load B
+  //              word = reader.readLine();
+                models.get(k).a.resize(models.get(k).numStates, models.get(k).numStates);
+                for (int i = 0; i < models.get(k).numStates; i++) {
+                    word = reader.readLine();
+                    buf = word.split("\t");
+                    for (int j = 0; j < models.get(k).numSymbols; j++) {
+                        value = Double.parseDouble(buf[j]);;
+                        models.get(k).b.set(value, i, j);
+                    }
+                }
+                
+                word = reader.readLine();
+                if (!word.contains("Pi:")) {
+                    System.err.println("loadModelFromFile( fstream &file ) - Could not find the Pi matrix for the " + (k + 1) + "th model.");
+                    return false;
+                }
+
+                //Load Pi
+                word = reader.readLine();
+                buf = word.split("\t");
+                for (int i = 0; i < models.get(k).numStates; i++) {
+                    value = Double.parseDouble(buf[i]);
+                    models.get(k).pi[i] = value;
+                }
+            }
+
+            maxLikelihood = 0;
+            bestDistance = 0;
+            classLikelihoods = new double[numClasses];
+            classDistances = new double[numClasses];
+        }
+        return true;
     }
 }

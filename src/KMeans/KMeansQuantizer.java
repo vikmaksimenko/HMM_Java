@@ -2,6 +2,7 @@ package KMeans;
 
 import DataStructures.TimeSeriesClassificationData;
 import Util.MatrixDouble;
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /*
@@ -13,7 +14,7 @@ import java.util.ArrayList;
  *
  * @author Пользователь
  */
-public class KMeansQuantizer {//extends FeatureExtraction{
+public class KMeansQuantizer implements Serializable {//extends FeatureExtraction{
 
     protected boolean trained = false;
     protected boolean featureDataReady = false;

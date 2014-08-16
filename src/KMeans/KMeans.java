@@ -7,6 +7,7 @@ package KMeans;
 
 import Util.MatrixDouble;
 import Util.MinMax;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.logging.Level;
@@ -16,7 +17,7 @@ import java.util.logging.Logger;
  *
  * @author Пользователь
  */
-class KMeans {
+class KMeans implements Serializable{
 
     protected boolean trained = false;
     protected boolean computeTheta = true;

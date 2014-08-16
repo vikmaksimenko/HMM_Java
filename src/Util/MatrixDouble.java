@@ -8,13 +8,14 @@ package Util;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  *
  * @author Пользователь
  */
-public class MatrixDouble {
+public class MatrixDouble implements Serializable{
 
     protected int rows;                ///< The number of rows in the Matrix
     protected int cols;                ///< The number of columns in the Matrix

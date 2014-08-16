@@ -6,10 +6,12 @@
 
 package hmm;
 
+import java.io.Serializable;
+
 /**
  *
  * @author Пользователь
  */
-public enum HMMModelTipes {
+public enum HMMModelTipes implements Serializable{
     ERGODIC, LEFTRIGHT
 }

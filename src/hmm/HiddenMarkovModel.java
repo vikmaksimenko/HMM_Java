@@ -8,12 +8,13 @@ package hmm;
 import Util.MatrixDouble;
 import java.util.ArrayList;
 import static hmm.HMMModelTipes.*;
+import java.io.Serializable;
 
 /**
  *
  * @author Пользователь
  */
-public class HiddenMarkovModel {
+public class HiddenMarkovModel implements Serializable{
 
     int numStates = 0;             //The number of states for this model
     int numSymbols = 0;            //The number of symbols for this model
@@ -30,8 +31,8 @@ public class HiddenMarkovModel {
     double logLikelihood = 0.0;	//The log likelihood of an observation sequence given the modal, calculated by the forward method
     double cThreshold = -1000;		//The classification threshold for this model
     double minImprovement = 1.0e-5;	//The minimum improvement value for the training loop
-    int[] observationSequence;
-    int[] estimatedStates;
+    int[] observationSequence = new int[0];
+    int[] estimatedStates = new int [0];
 
     private int currentIter;
     private double newLoglikelihood;
@@ -215,7 +216,7 @@ public class HiddenMarkovModel {
         averageObsLength = (int) Math.floor(averageObsLength / (double) numObs);
         observationSequence = new int[averageObsLength];
         estimatedStates = new int[averageObsLength];
-        
+
         //Finally, flag that the model was trained
         modelTrained = true;
         return true;
@@ -282,11 +283,11 @@ public class HiddenMarkovModel {
                 keepTraining = false;
                 System.out.println("Min Improvement Reached! Stopping Training");
             }
-            
+
             System.out.println("Iter: " + currentIter + " logLikelihood: " + newLoglikelihood + " change: " + (oldLoglikelihood - newLoglikelihood));
 
             printMatrices();
-            
+
             oldLoglikelihood = newLoglikelihood;
 
             //Only update A, B, and Pi if needed
@@ -466,6 +467,7 @@ public class HiddenMarkovModel {
                     double val = alpha.get(t, j);
                     val += alpha.get(t - 1, i) * a.get(i, j);
                     alpha.set(val, t, j);
+
                 }
                 double val = alpha.get(t, j);
                 val *= b.get(j, obs[t]);
@@ -506,7 +508,23 @@ public class HiddenMarkovModel {
     }
 
     private boolean forwardBackward(HMMTrainingObject hmm, int[] obs) {
-
+//        /* DEBUG! */
+//        System.out.print("====== FORWARDBACKWARD=====\n");
+//        System.out.print("Start state: \n");
+//        System.out.print("alpha: \n");
+//        hmm.alpha.print();
+//        System.out.print("beta: \n");
+//        hmm.beta.print();
+//        System.out.print("c: \n");
+//        for (int z = 0; z < hmm.c.length; z++) {
+//            System.out.print(hmm.c[z] + "\t");
+//        }
+//        System.out.print("\npk: " + hmm.pk);
+//        System.out.print("obs: \n");
+//        for (int z = 0; z < obs.length; z++) {
+//            System.out.print(obs[z] + "\t");
+//        }
+//
         final int N = numStates;
         final int T = obs.length;
         int t, i, j = 0;
@@ -601,9 +619,27 @@ public class HiddenMarkovModel {
                 hmm.beta.set(val, t, i);
             }
         }
-
-//        System.out.println("In forward\n");
+//        /* DEBUG! */
+//        System.out.print("End state: \n");
+//        System.out.print("alpha: \n");
 //        hmm.alpha.print();
+//        System.out.print("beta: \n");
+//        hmm.beta.print();
+//        System.out.print("c: \n");
+//        for (int z = 0; z < hmm.c.length; z++) {
+//            System.out.print(hmm.c[z] + "\t");
+//        }
+//        System.out.print("\npk: " + hmm.pk);
+//        System.out.print("obs: \n");
+//        for (int z = 0; z < obs.length; z++) {
+//            System.out.print(obs[z] + "\t");
+//        }
+//        try {
+//            Thread.sleep(2000);
+//        } catch (InterruptedException ex) {
+//            Logger.getLogger(HiddenMarkovModel.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+
         return true;
 
     }
