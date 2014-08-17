@@ -39,14 +39,14 @@ public class Main {
         //Load recognition data
         TimeSeriesClassificationData testData = new TimeSeriesClassificationData();
         try {
-            if (!testData.loadDatasetFromFile("HMMTrainingDataACC1.txt")) {
+            if (!testData.loadDatasetFromFile()) {
                 System.err.println("ERROR: Failed to load test data!");
                 return;
             }
         } catch (IOException ex) {
             System.err.println("ERROR: Failed to load training data! " + ex);
         }
-
+  
         //Quantize the test data
         TimeSeriesClassificationData quantizedTestData = new TimeSeriesClassificationData(1);
 

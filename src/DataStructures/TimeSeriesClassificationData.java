@@ -12,9 +12,9 @@ import java.util.ArrayList;
 /**
  * The TimeSeriesClassificationData is the main data structure for recording,
  * labeling, managing, saving, and loading training data for supervised temporal
- * learning problems. TimeSeriesClassificationData sample will
- * consist of an N dimensional time series of length M. The length of each time
- * series sample (i.e. M) can be different for each datum in the dataset.
+ * learning problems. TimeSeriesClassificationData sample will consist of an N
+ * dimensional time series of length M. The length of each time series sample
+ * (i.e. M) can be different for each datum in the dataset.
  */
 public class TimeSeriesClassificationData {
 
@@ -299,6 +299,70 @@ public class TimeSeriesClassificationData {
     public void clear() {
         totalNumSamples = 0;
         data.clear();
+    }
+
+    /**
+     * Loads the labelled timeseries classification data from a custom file
+     * format.
+     *
+     * @return true if the data was loaded successfully, false otherwise
+     */
+    public boolean loadDatasetFromFile() throws IOException {
+
+        int numClasses = 0;
+        clear();
+
+        BufferedReader reader;
+
+        try {
+            reader = new BufferedReader(new FileReader("data.txt"));
+        } catch (FileNotFoundException ex) {
+            System.err.println("loadDatasetFromFile(String filename) - FILE NOT OPEN!");
+            return false;
+        }
+
+        // Default settings for accelerator data
+        datasetName = "ACCELERATORData";
+        infoText = "This dataset contains 7 ACCELERATOR timeseries gestures: circle, clock, pi, shield, triangle, v, z.  There are 8 recording of each gesture. circle is class 1, clock is class 2, pi is class 3, shield is class 4, triangle is class 5, v is class 6, z is class 7.";
+        numDimensions = 3;
+        totalNumSamples = 1;
+        numClasses = 1;
+
+        //Resize the class counter buffer and load the counters
+        classTracker.ensureCapacity(numClasses);
+        classTracker.add(new ClassTracker(-1, 1, "NOT_SET"));
+
+        //Get the main training data
+        //Reset the memory
+        data.ensureCapacity(totalNumSamples);
+
+        int classLabel = -1;
+        int timeSeriesLength = 0;
+
+        String word;
+        String [] buf = new String[150]; // Костыль!
+        
+        // Count TimeSeriesLength
+        while ((buf[timeSeriesLength] = reader.readLine()) != null) {
+            timeSeriesLength++;
+        }
+
+        //Load the time series data
+        String[] strData;
+        MatrixDouble trainingExample = new MatrixDouble(timeSeriesLength, numDimensions);
+        
+        for (int i = 0; i < timeSeriesLength; i++) {
+            strData = buf[i].split(" ");
+            for (int j = 0; j < numDimensions; j++) {
+                trainingExample.set(Double.parseDouble(strData[j]), i, j);
+            }
+        }
+
+        data.add(new TimeSeriesClassificationSample());
+        data.get(0).setTrainingSample(classLabel, trainingExample);
+
+        reader.close();
+        return true;
     }
 
     /**
