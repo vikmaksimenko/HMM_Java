@@ -17,6 +17,17 @@ Realization of Hidden Markov Model for gesture recognition on Java. Based on GRT
 
 Для упрощения вывода был написан метод printLabel(), принимающий номер класса и выводящий номер фигуры. Также соответствие "номер-название" можно найти в 3 строке (InfoText) файла HMMTrainingDataACC1.txt
 
+=======
+Алгоритм работы: 
+
+1. Загрузка квантайзера и модели
+2. Загрузка данных
+3. Квантование данных
+4. Распознавание
+5. Вывод результата
+
+Для упрощения вывода был написан метод printLabel(), принимающий номер класса и выводящий номер фигуры. Также соответствие "номер-название" можно найти в 3 строке (InfoText) файла HMMTrainingDataACC1.txt
+
 Данный код написан с использованием GRT (<Nicholas Gillian, Media Lab, MIT>, )
 
 The HMM_Java is available under a MIT license.
