@@ -8,7 +8,8 @@
             <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/DataStructures/TimeSeriesClassificationData.java</file>
             <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/hmm/HMMModelTipes.java</file>
             <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/hmm/HMM.java</file>
-            <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/Util/MatrixDouble.java</file>
+            <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/KMeans/KMeans.java</file>
+            <file>file:/C:/Users/Пользователь/Documents/NetBeansProjects/HMM/src/KMeans/KMeansQuantizer.java</file>
         </group>
     </open-files>
 </project-private>

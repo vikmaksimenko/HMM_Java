@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package KMeans;
 
 import Util.MatrixDouble;
@@ -10,14 +5,11 @@ import Util.MinMax;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Random;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
- *
- * @author Пользователь
+ * This class implements the KMeans clustering algorithm.
  */
-class KMeans implements Serializable{
+class KMeans implements Serializable {
 
     protected boolean trained = false;
     protected boolean computeTheta = true;
@@ -47,19 +39,13 @@ class KMeans implements Serializable{
         this.maxNumEpochs = maxNumEpochs;
         this.minChange = minChange;
         this.computeTheta = computeTheta;
-
-//        numTrainingIterationsToConverge = 0;
-//
-//        classType = "KMeans";
-//        clustererType = classType;
-//    debugLog.setProceedingText("[DEBUG KMeans]");
-//    errorLog.setProceedingText("[ERROR KMeans]");
-//    trainingLog.setProceedingText("[TRAINING KMeans]");
-//    warningLog.setProceedingText("[WARNING KMeans]");
     }
 
     public KMeans() {
+    }
 
+    MatrixDouble getClusters() {
+        return clusters;
     }
 
     public void setComputeTheta(boolean computeTheta) {
@@ -82,10 +68,6 @@ class KMeans implements Serializable{
         this.minChange = minChange;
     }
 
-    MatrixDouble getClusters() {
-        return clusters;
-    }
-
     boolean train(MatrixDouble data) {
         trained = false;
 
@@ -102,10 +84,6 @@ class KMeans implements Serializable{
         numTrainingSamples = data.getNumRows();
         numInputDimensions = data.getNumCols();
 
-//            /* DEBUG!!! */
-//    System.out.println( "numTrainingSamples" + numTrainingSamples );
-//    System.out.println( "numInputDimensions" + numInputDimensions );
-  
         clusters.resize(numClusters, numInputDimensions);
         assign = new int[numTrainingSamples];
         count = new int[numClusters];
@@ -134,17 +112,13 @@ class KMeans implements Serializable{
                 clusters.set(val, k, j);
             }
         }
-        
-//        /* DEBUG! */
 
         try {
             clusters.loadDataTxt("clusters.txt");
         } catch (Exception ex) {
             System.err.println(ex);
         }
-        System.out.println("\nClusters:");
-        clusters.print();
-        
+
         return trainModel(data);
     }
 
@@ -204,7 +178,6 @@ class KMeans implements Serializable{
         }
 
         //Run the training loop
-
         while (keepTraining) {
             startTime = System.currentTimeMillis();
 
@@ -234,7 +207,7 @@ class KMeans implements Serializable{
             if (currentIter >= maxNumEpochs) {
                 keepTraining = false;
             }
-            
+
             if (Math.abs(delta) < minChange && computeTheta && currentIter > minNumEpochs) {
                 converged = true;
                 keepTraining = false;
@@ -243,11 +216,10 @@ class KMeans implements Serializable{
                 thetaTracker.add(theta);
             }
             System.out.println("Epoch: " + currentIter + "/" + maxNumEpochs);
-            System.out.println(" Epoch time: " + (System.currentTimeMillis()- startTime) / 1000.0 + " seconds");
+            System.out.println(" Epoch time: " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
             System.out.println(" Theta: " + theta + " Delta: " + delta);
         }
-        System.out.println("Model Trained at epoch: " + currentIter + " with a theta value of: " + theta
-        );
+        System.out.println("Model Trained at epoch: " + currentIter + " with a theta value of: " + theta);
 
         finalTheta = theta;
         numTrainingIterationsToConverge = currentIter;
@@ -256,7 +228,7 @@ class KMeans implements Serializable{
         return true;
     }
 
-    int estep(MatrixDouble data) {
+    protected int estep(MatrixDouble data) {
         int k, m, n, kmin;
         double dmin, d;
         nchg = 0;
@@ -289,7 +261,7 @@ class KMeans implements Serializable{
         return nchg;
     }
 
-    void mstep(MatrixDouble data) {
+    protected void mstep(MatrixDouble data) {
         int n, k, m;
 
         //Reset means to zero
@@ -319,7 +291,7 @@ class KMeans implements Serializable{
         }
     }
 
-    private double calculateTheta(MatrixDouble data) {
+    protected double calculateTheta(MatrixDouble data) {
         double theta = 0;
         double sum = 0;
         int m, n, k = 0;

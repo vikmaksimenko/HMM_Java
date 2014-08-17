@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package hmm;
 
 import DataStructures.TimeSeriesClassificationData;
@@ -16,70 +11,64 @@ import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
- *
- * @author Пользователь
+ * This class acts as the main interface for using a Hidden Markov Model.
  */
-public class HMM implements Serializable{
+public class HMM implements Serializable {
 
     //Variables for all the HMMs
     protected boolean trained = false;
     protected boolean useScaling = false;
-    protected int numStates = 5;			//The number of states for each model
-    protected int numSymbols = 10;		//The number of symbols for each model
-    protected int numInputDimensions = 0;
-//    protected int numOutputDimensions = 0;
-//    protected int numTrainingIterationsToConverge;
-    protected int numClasses;
-    protected int predictedClassLabel;
-    protected HMMModelTipes modelType = LEFTRIGHT;         //Set if the model is ERGODIC or LEFTRIGHT
-    protected int delta = 1;				//The number of states a model can move to in a LeftRight model
-    protected int maxNumIter = 100;		//The maximum number of iter allowed during the full training
-    protected int numRandomTrainingIterations;
-    protected double minImprovement = 1.0e-2;  //The minimum improvement value for each model during training
     protected boolean useNullRejection = false;
+
+    protected int delta = 1;				//The number of states a model can move to in a LeftRight model
+    protected int maxNumIter = 100;                     //The maximum number of iter allowed during the full training
+    protected int numClasses;
+    protected int numInputDimensions = 0;
+    protected int numRandomTrainingIterations;
+    protected int numStates = 5;			//The number of states for each model
+    protected int numSymbols = 10;                      //The number of symbols for each model
+    protected int predictedClassLabel;
 
     protected double bestDistance;
     protected double maxLikelihood;
+    protected double minImprovement = 1.0e-2;           //The minimum improvement value for each model during training
+
+    protected int[] classLabels = new int[0];
+
     protected double[] classLikelihoods = new double[0];
     protected double[] classDistances = new double[0];
-
     protected double[] nullRejectionThresholds;
 
-    int[] classLabels = null;
-    ArrayList<HiddenMarkovModel> models = new ArrayList<HiddenMarkovModel>();
+    protected HMMModelTipes modelType = LEFTRIGHT;      //Set if the model is ERGODIC or LEFTRIGHT
 
-    //static RegisterClassifierModule< HMM> registerModule;
-    public boolean setNumStates(int numStates) {
+    protected ArrayList<HiddenMarkovModel> models = new ArrayList<HiddenMarkovModel>();
 
-        if (numStates > 0) {
-            this.numStates = numStates;
-            return true;
+    public double[] getClassDistances() {
+        if (trained) {
+            return classDistances;
         }
-
-        System.err.println("setNumStates( int numStates) - Num states must be greater than zero!");
-        return false;
+        return null;
     }
 
-    public boolean setNumSymbols(int numSymbols) {
-
-        if (numSymbols > 0) {
-            this.numSymbols = numSymbols;
-            return true;
+    public double[] getClassLikelihoods() {
+        if (trained) {
+            return classLikelihoods;
         }
-
-        System.err.println("setNumSymbols( int numSymbols) - Num symbols must be greater than zero!");
-        return false;
+        return null;
     }
 
-    public boolean setModelType(HMMModelTipes modelType) {
-
-        if (modelType == ERGODIC || modelType == LEFTRIGHT) {
-            this.modelType = modelType;
-            return true;
+    public double getMaximumLikelihood() {
+        if (trained) {
+            return maxLikelihood;
         }
+        return 0;
+    }
 
-        System.err.println("setModelType( int modelType) - Unknown model type!");
-        return false;
+    public int getPredictedClassLabel() {
+        if (trained) {
+            return predictedClassLabel;
+        }
+        return 0;
     }
 
     public boolean setDelta(int delta) {
@@ -104,17 +93,6 @@ public class HMM implements Serializable{
         return false;
     }
 
-    public boolean setNumRandomTrainingIterations(int numRandomTrainingIterations) {
-
-        if (numRandomTrainingIterations > 0) {
-            this.numRandomTrainingIterations = numRandomTrainingIterations;
-            return true;
-        }
-
-        System.err.println("setMaxNumIterations( int maxNumIter) - The number of random training iterations must be greater than zero!");
-        return false;
-    }
-
     public boolean setMinImprovement(double minImprovement) {
 
         if (minImprovement > 0) {
@@ -126,85 +104,51 @@ public class HMM implements Serializable{
         return false;
     }
 
-    public boolean train(TimeSeriesClassificationData trainingData) {
-
-        clear();
-
-        if (trainingData.getNumSamples() == 0) {
-            System.err.println("train_(TimeSeriesClassificationData &trainingData) - There are no training samples to train the HMM classifer!");
-            return false;
-        }
-
-        if (trainingData.getNumDimensions() != 1) {
-            System.err.println("train_(TimeSeriesClassificationData &trainingData) - The number of dimensions in the training data must be 1. If your training data is not 1 dimensional then you must quantize the training data using one of the GRT quantization algorithms");
-            return false;
-        }
-
-        //Reset the HMM
-        numInputDimensions = trainingData.getNumDimensions();
-        numClasses = trainingData.getNumClasses();
-        models.ensureCapacity(numClasses);
-        classLabels = new int[numClasses];
-
-        //Init the models
-        for (int k = 0; k < numClasses; k++) {
-            models.add(k, new HiddenMarkovModel());
-            models.get(k).resetModel(numStates, numSymbols, modelType, delta);
-            models.get(k).maxNumIter = maxNumIter;
-            models.get(k).minImprovement = minImprovement;
-        }
-
-        //Train each of the models
-        for (int k = 0; k < numClasses; k++) {
-            //Get the class ID of this gesture
-            int classID = trainingData.getClassTracker().get(k).classLabel;
-            classLabels[k] = classID;
-
-            //Convert this classes training data into a list of observation sequences
-            TimeSeriesClassificationData classData = trainingData.getClassData(classID);
-            int[][] observationSequences = null;
-            if ((observationSequences = convertDataToObservationSequence(classData)) == null) {
-                return false;
-            }
-
-            //Train the model
-            if (!models.get(k).train(observationSequences)) {
-                System.err.println("train_(TimeSeriesClassificationData &trainingData) - Failed to train HMM for class " + classID);
-                return false;
-            }
-        }
-
-        //Compute the rejection thresholds
-        nullRejectionThresholds = new double[numClasses];
-
-        for (int k = 0; k < numClasses; k++) {
-            //Get the class ID of this gesture
-            int classID = trainingData.getClassTracker().get(k).classLabel;
-            classLabels[k] = classID;
-
-            //Convert this classes training data into a list of observation sequences
-            TimeSeriesClassificationData classData = trainingData.getClassData(classID);
-            int[][] observationSequences = null;
-            if ((observationSequences = convertDataToObservationSequence(classData)) == null) {
-                return false;
-            }
-
-            //Test the model
-            double loglikelihood = 0;
-            double avgLoglikelihood = 0;
-            for (int i = 0; i < observationSequences.length; i++) {
-                loglikelihood = models.get(k).predict(observationSequences[i]);
-                avgLoglikelihood += Math.abs(loglikelihood);
-            }
-            nullRejectionThresholds[k] = -(avgLoglikelihood / (double) observationSequences.length);
-        }
-
-        //Flag that the model has been trained
-        trained = true;
-
+    public boolean setModelType(HMMModelTipes modelType) {
+        this.modelType = modelType;
         return true;
     }
 
+    public boolean setNumRandomTrainingIterations(int numRandomTrainingIterations) {
+
+        if (numRandomTrainingIterations > 0) {
+            this.numRandomTrainingIterations = numRandomTrainingIterations;
+            return true;
+        }
+
+        System.err.println("setMaxNumIterations( int maxNumIter) - The number of random training iterations must be greater than zero!");
+        return false;
+    }
+
+    public boolean setNumStates(int numStates) {
+
+        if (numStates > 0) {
+            this.numStates = numStates;
+            return true;
+        }
+
+        System.err.println("setNumStates( int numStates) - Num states must be greater than zero!");
+        return false;
+    }
+
+    public boolean setNumSymbols(int numSymbols) {
+
+        if (numSymbols > 0) {
+            this.numSymbols = numSymbols;
+            return true;
+        }
+
+        System.err.println("setNumSymbols( int numSymbols) - Num symbols must be greater than zero!");
+        return false;
+    }
+
+    /**
+     * Converts TimeSeriesClassificationData into int[][]
+     *
+     * @param TimeSeriesClassificationData classData: a reference to the
+     * training data
+     * @return returns true if the HMM model was trained, false otherwise
+     */
     public int[][] convertDataToObservationSequence(TimeSeriesClassificationData classData) {
 
         int[][] observationSequences = new int[classData.getNumSamples()][];
@@ -224,105 +168,13 @@ public class HMM implements Serializable{
         return observationSequences;
     }
 
-    private void clear() {
-        models.clear();
-    }
-
-    public boolean predict(MatrixDouble timeseries) {
-        if (timeseries.getNumCols() != 1) {
-            System.err.println("predict_(MatrixDouble &timeseries) The number of columns in the input matrix must be 1. It is: " + timeseries.getNumCols());
-            return false;
-        }
-
-        //Covert the matrix double to observations
-        final int M = timeseries.getNumRows();
-        int[] observationSequence = new int[M];
-
-        for (int i = 0; i < M; i++) {
-            observationSequence[i] = (int) timeseries.get(i, 0);
-
-            if (observationSequence[i] >= numSymbols) {
-                System.err.println("predict_(VectorDouble &inputVector) - The new observation is not a valid symbol! It should be in the range [0 numSymbols-1]");
-                return false;
-            }
-        }
-
-        if (classLikelihoods.length != numClasses) {
-            classLikelihoods = new double[numClasses];
-        }
-        if (classDistances.length != numClasses) {
-            classDistances = new double[numClasses];
-        }
-
-        bestDistance = -99e+99;
-        int bestIndex = 0;
-        double sum = 0;
-        for (int k = 0; k < numClasses; k++) {
-            classDistances[k] = models.get(k).predict(observationSequence);
-
-            //Set the class likelihood as the antilog of the class distances
-            classLikelihoods[k] = antilog(classDistances[k]);
-
-            //The loglikelihood values are negative so we want the values closest to 0
-            if (classDistances[k] > bestDistance) {
-                bestDistance = classDistances[k];
-                bestIndex = k;
-            }
-
-            sum += classLikelihoods[k];
-        }
-
-        //Turn the class distances into proper likelihoods
-        for (int k = 0; k < numClasses; k++) {
-            classLikelihoods[k] /= sum;
-        }
-
-        maxLikelihood = classLikelihoods[ bestIndex];
-        predictedClassLabel = classLabels[ bestIndex];
-
-        if (useNullRejection) {
-            if (maxLikelihood > nullRejectionThresholds[ bestIndex]) {
-                predictedClassLabel = classLabels[ bestIndex];
-            } else {
-                predictedClassLabel = 0;
-            }
-        }
-
-        return true;
-    }
-
-    public int getPredictedClassLabel() {
-        if (trained) {
-            return predictedClassLabel;
-        }
-        return 0;
-    }
-
-    public double[] getClassLikelihoods() {
-        if (trained) {
-            return classLikelihoods;
-        }
-        return null;
-    }
-
-    public double[] getClassDistances() {
-        if (trained) {
-            return classDistances;
-        }
-        return null;
-    }
-
-    public double getMaximumLikelihood() {
-        if (trained) {
-            return maxLikelihood;
-        }
-        return 0;
-    }
-
-    private double antilog(double d) {
-        return Math.exp(d);
-    }
-
+    /**
+     * This loads a trained HMM model from a file.
+     *
+     * @param String file: the name of the file to load the HMM model from
+     * @return returns true if the model was loaded successfully, false
+     * otherwise
+     */
     public boolean loadModelFromFile(String file) throws IOException {
         clear();
 
@@ -465,7 +317,7 @@ public class HMM implements Serializable{
             clear();
             return false;
         }
-//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);classifierMode;
+
         //Load if the null rejection coeff
         word = reader.readLine();
         if (!word.contains("NullRejectionCoeff:")) {
@@ -473,7 +325,6 @@ public class HMM implements Serializable{
             clear();
             return false;
         }
-//                buf = word.split(" ");        numStates = Integer.parseInt(buf[1]);nullRejectionCoeff;
 
         //If the model is trained then load the model settings
         if (trained) {
@@ -601,7 +452,7 @@ public class HMM implements Serializable{
                 models.get(k).numStates = Integer.parseInt(buf[1]);
 
                 System.out.println("Num states: " + numStates);
-                
+
                 word = reader.readLine();
                 if (!word.contains("NumSymbols:")) {
                     System.err.println("loadModelFromFile( fstream &file ) - Could not find the NumSymbols for the " + (k + 1) + "th model");
@@ -679,7 +530,7 @@ public class HMM implements Serializable{
                 }
 
                 //Load B
-  //              word = reader.readLine();
+                //              word = reader.readLine();
                 models.get(k).a.resize(models.get(k).numStates, models.get(k).numStates);
                 for (int i = 0; i < models.get(k).numStates; i++) {
                     word = reader.readLine();
@@ -689,7 +540,7 @@ public class HMM implements Serializable{
                         models.get(k).b.set(value, i, j);
                     }
                 }
-                
+
                 word = reader.readLine();
                 if (!word.contains("Pi:")) {
                     System.err.println("loadModelFromFile( fstream &file ) - Could not find the Pi matrix for the " + (k + 1) + "th model.");
@@ -711,5 +562,169 @@ public class HMM implements Serializable{
             classDistances = new double[numClasses];
         }
         return true;
+    }
+
+    /**
+     * This predicts the class of the timeseries.
+     *
+     * @param MatrixDouble timeSeries: the input timeseries to classify
+     * @return returns true if the prediction was performed, false otherwise
+     */
+    public boolean predict(MatrixDouble timeseries) {
+        if (timeseries.getNumCols() != 1) {
+            System.err.println("predict_(MatrixDouble &timeseries) The number of columns in the input matrix must be 1. It is: " + timeseries.getNumCols());
+            return false;
+        }
+
+        //Covert the matrix double to observations
+        final int M = timeseries.getNumRows();
+        int[] observationSequence = new int[M];
+
+        for (int i = 0; i < M; i++) {
+            observationSequence[i] = (int) timeseries.get(i, 0);
+
+            if (observationSequence[i] >= numSymbols) {
+                System.err.println("predict_(VectorDouble &inputVector) - The new observation is not a valid symbol! It should be in the range [0 numSymbols-1]");
+                return false;
+            }
+        }
+
+        if (classLikelihoods.length != numClasses) {
+            classLikelihoods = new double[numClasses];
+        }
+        if (classDistances.length != numClasses) {
+            classDistances = new double[numClasses];
+        }
+
+        bestDistance = -99e+99;
+        int bestIndex = 0;
+        double sum = 0;
+        for (int k = 0; k < numClasses; k++) {
+            classDistances[k] = models.get(k).predict(observationSequence);
+
+            //Set the class likelihood as the antilog of the class distances
+            classLikelihoods[k] = antilog(classDistances[k]);
+
+            //The loglikelihood values are negative so we want the values closest to 0
+            if (classDistances[k] > bestDistance) {
+                bestDistance = classDistances[k];
+                bestIndex = k;
+            }
+
+            sum += classLikelihoods[k];
+        }
+
+        //Turn the class distances into proper likelihoods
+        for (int k = 0; k < numClasses; k++) {
+            classLikelihoods[k] /= sum;
+        }
+
+        maxLikelihood = classLikelihoods[ bestIndex];
+        predictedClassLabel = classLabels[ bestIndex];
+
+        if (useNullRejection) {
+            if (maxLikelihood > nullRejectionThresholds[ bestIndex]) {
+                predictedClassLabel = classLabels[ bestIndex];
+            } else {
+                predictedClassLabel = 0;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * This trains the HMM model, using the labelled timeseries classification
+     * data.
+     *
+     * @param TimeSeriesClassificationData trainingData: a reference to the
+     * training data
+     * @return returns true if the HMM model was trained, false otherwise
+     */
+    public boolean train(TimeSeriesClassificationData trainingData) {
+
+        clear();
+
+        if (trainingData.getNumSamples() == 0) {
+            System.err.println("train_(TimeSeriesClassificationData &trainingData) - There are no training samples to train the HMM classifer!");
+            return false;
+        }
+
+        if (trainingData.getNumDimensions() != 1) {
+            System.err.println("train_(TimeSeriesClassificationData &trainingData) - The number of dimensions in the training data must be 1. If your training data is not 1 dimensional then you must quantize the training data using one of the GRT quantization algorithms");
+            return false;
+        }
+
+        //Reset the HMM
+        numInputDimensions = trainingData.getNumDimensions();
+        numClasses = trainingData.getNumClasses();
+        models.ensureCapacity(numClasses);
+        classLabels = new int[numClasses];
+
+        //Init the models
+        for (int k = 0; k < numClasses; k++) {
+            models.add(k, new HiddenMarkovModel());
+            models.get(k).resetModel(numStates, numSymbols, modelType, delta);
+            models.get(k).maxNumIter = maxNumIter;
+            models.get(k).minImprovement = minImprovement;
+        }
+
+        //Train each of the models
+        for (int k = 0; k < numClasses; k++) {
+            //Get the class ID of this gesture
+            int classID = trainingData.getClassTracker().get(k).classLabel;
+            classLabels[k] = classID;
+
+            //Convert this classes training data into a list of observation sequences
+            TimeSeriesClassificationData classData = trainingData.getClassData(classID);
+            int[][] observationSequences = null;
+            if ((observationSequences = convertDataToObservationSequence(classData)) == null) {
+                return false;
+            }
+
+            //Train the model
+            if (!models.get(k).train(observationSequences)) {
+                System.err.println("train_(TimeSeriesClassificationData &trainingData) - Failed to train HMM for class " + classID);
+                return false;
+            }
+        }
+
+        //Compute the rejection thresholds
+        nullRejectionThresholds = new double[numClasses];
+
+        for (int k = 0; k < numClasses; k++) {
+            //Get the class ID of this gesture
+            int classID = trainingData.getClassTracker().get(k).classLabel;
+            classLabels[k] = classID;
+
+            //Convert this classes training data into a list of observation sequences
+            TimeSeriesClassificationData classData = trainingData.getClassData(classID);
+            int[][] observationSequences = null;
+            if ((observationSequences = convertDataToObservationSequence(classData)) == null) {
+                return false;
+            }
+
+            //Test the model
+            double loglikelihood = 0;
+            double avgLoglikelihood = 0;
+            for (int i = 0; i < observationSequences.length; i++) {
+                loglikelihood = models.get(k).predict(observationSequences[i]);
+                avgLoglikelihood += Math.abs(loglikelihood);
+            }
+            nullRejectionThresholds[k] = -(avgLoglikelihood / (double) observationSequences.length);
+        }
+
+        //Flag that the model has been trained
+        trained = true;
+
+        return true;
+    }
+
+    private double antilog(double d) {
+        return Math.exp(d);
+    }
+
+    private void clear() {
+        models.clear();
     }
 }

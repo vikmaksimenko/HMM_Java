@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package hmm;
 
 import Util.MatrixDouble;
@@ -11,33 +6,91 @@ import static hmm.HMMModelTipes.*;
 import java.io.Serializable;
 
 /**
- *
- * @author Пользователь
+ * This class implements a discrete Hidden Markov Model.
  */
-public class HiddenMarkovModel implements Serializable{
+public class HiddenMarkovModel implements Serializable {
 
-    int numStates = 0;             //The number of states for this model
-    int numSymbols = 0;            //The number of symbols for this model
-    MatrixDouble a = new MatrixDouble();             //The transitions probability matrix
-    MatrixDouble b = new MatrixDouble();             //The emissions probability matrix
-    double[] pi;            //The state start probability vector
-    ArrayList<Double> trainingIterationLog = new ArrayList<Double>();   //Stores the loglikelihood at each iteration the BaumWelch algorithm
+    boolean modelTrained = false;
+
+    int numStates = 0;                          //The number of states for this model
+    int numSymbols = 0;                         //The number of symbols for this model
+    int delta = 1;				//The number of states a model can move to in a LeftRight model
+    int numRandomTrainingIterations = 5;	//The number of training loops to find the best starting values
+    int maxNumIter = 100;                       //The maximum number of iter allowed during the full training
+
+    double logLikelihood = 0.0;                 //The log likelihood of an observation sequence given the modal, calculated by the forward method
+    double cThreshold = -1000;                  //The classification threshold for this model
+    double minImprovement = 1.0e-5;             //The minimum improvement value for the training loop
+
+    int[] observationSequence = new int[0];
+    int[] estimatedStates = new int[0];
+
+    double[] pi;                                //The state start probability vector
 
     HMMModelTipes modelType = ERGODIC;
-    int delta = 1;				//The number of states a model can move to in a LeftRight model
-    int numRandomTrainingIterations = 5;		//The number of training loops to find the best starting values
-    int maxNumIter = 100;		//The maximum number of iter allowed during the full training
-    boolean modelTrained = false;
-    double logLikelihood = 0.0;	//The log likelihood of an observation sequence given the modal, calculated by the forward method
-    double cThreshold = -1000;		//The classification threshold for this model
-    double minImprovement = 1.0e-5;	//The minimum improvement value for the training loop
-    int[] observationSequence = new int[0];
-    int[] estimatedStates = new int [0];
+
+    ArrayList<Double> trainingIterationLog
+            = new ArrayList<Double>();          //Stores the loglikelihood at each iteration the BaumWelch algorithm
+
+    MatrixDouble a = new MatrixDouble();        //The transitions probability matrix
+    MatrixDouble b = new MatrixDouble();        //The emissions probability matrix
 
     private int currentIter;
     private double newLoglikelihood;
 
     public HiddenMarkovModel() {
+    }
+
+    private double getRandomNumberUniform(double minRange, double maxRange) {
+        return (Math.random() * (maxRange - minRange)) + minRange;
+    }
+
+    public void printMatrices() {
+        System.out.println("A: ");
+        for (int i = 0; i < a.getNumRows(); i++) {
+            for (int j = 0; j < a.getNumCols(); j++) {
+                System.out.print(a.get(i, j) + "\t");
+            }
+            System.out.println();
+        }
+
+        System.out.println("B: ");
+        for (int i = 0; i < b.getNumRows(); i++) {
+            for (int j = 0; j < b.getNumCols(); j++) {
+                System.out.print(b.get(i, j) + "\t");
+            }
+            System.out.println();
+        }
+
+        System.out.print("Pi: ");
+        for (int i = 0; i < pi.length; i++) {
+            System.out.print(pi[i] + "\t");
+        }
+        System.out.println();
+
+        //Check the weights all sum to 1
+        if (true) {
+            double sum = 0.0;
+            for (int i = 0; i < a.getNumRows(); i++) {
+                sum = 0.0;
+                for (int j = 0; j < a.getNumCols(); j++) {
+                    sum += a.get(i, j);
+                }
+                if (sum <= 0.99 || sum >= 1.01) {
+                    System.err.println("WARNING: A Row " + i + " Sum: " + sum);
+                }
+            }
+
+            for (int i = 0; i < b.getNumRows(); i++) {
+                sum = 0.0;
+                for (int j = 0; j < b.getNumCols(); j++) {
+                    sum += b.get(i, j);
+                }
+                if (sum <= 0.99 || sum >= 1.01) {
+                    System.err.println("WARNING: B Row " + i + " Sum: " + sum);
+                }
+            }
+        }
     }
 
     public boolean resetModel(int numStates, int numSymbols, HMMModelTipes modelType, int delta) {
@@ -48,102 +101,80 @@ public class HiddenMarkovModel implements Serializable{
         return randomizeMatrices(numStates, numSymbols);
     }
 
-    private boolean randomizeMatrices(int numStates, int numSymbols) {
-        //Set the model as untrained as everything will now be reset
-        modelTrained = false;
-        logLikelihood = 0.0;
+    double predict(int[] obs) {
+        final int N = numStates;
+        final int T = obs.length;
+        int t, i, j = 0;
+        MatrixDouble alpha = new MatrixDouble(T, numStates);
+        double[] c = new double[T];
 
-        //Set the new state and symbol size
-        this.numStates = numStates;
-        this.numSymbols = numSymbols;
-        a.resize(numStates, numStates);
-        b.resize(numStates, numSymbols);
-        pi = new double[numStates];
-
-        //Fill Transition and Symbol Matrices randomly
-        //It's best to choose values in the range [0.9 1.1] rather than [0 1]
-        //That way, no single value will get too large or too small a weight when the values are normalized
-        for (int i = 0; i < a.getNumRows(); i++) {
-            for (int j = 0; j < a.getNumCols(); j++) {
-                a.set(getRandomNumberUniform(0.9, 1), i, j);
-            }
+        ////////////////// Run the forward algorithm ////////////////////////
+        //Step 1: Init at t=0
+        t = 0;
+        c[t] = 0.0;
+        for (i = 0; i < N; i++) {
+            double val = pi[i] * b.get(i, obs[t]);
+            alpha.set(val, t, i);
+            c[t] += val;
         }
 
-        for (int i = 0; i < b.getNumRows(); i++) {
-            for (int j = 0; j < b.getNumCols(); j++) {
-                b.set(getRandomNumberUniform(0.9, 1), i, j);
-            }
+        //Set the inital scaling coeff
+        c[t] = 1.0 / c[t];
+
+        //Scale alpha
+        for (i = 0; i < N; i++) {
+            double val = alpha.get(t, i);
+            val *= c[t];
+            alpha.set(val, t, i);
         }
 
-        //Randomise pi
-        for (int i = 0; i < numStates; i++) {
-            pi[i] = getRandomNumberUniform(0.9, 1);
-        }
+        //Step 2: Induction
+        for (t = 1; t < T; t++) {
+            c[t] = 0.0;
+            for (j = 0; j < N; j++) {
+                alpha.set(0.0, t, j);
+                for (i = 0; i < N; i++) {
+                    double val = alpha.get(t, j);
+                    val += alpha.get(t - 1, i) * a.get(i, j);
+                    alpha.set(val, t, j);
 
-        //Set any raints on the model
-        switch (modelType) {
-            case ERGODIC:
-                //Don't need todo anything
-                break;
-            case LEFTRIGHT:
-                //Set the state transitions raints
-                for (int i = 0; i < numStates; i++) {
-                    for (int j = 0; j < numStates; j++) {
-                        if ((j < i) || (j > i + delta)) {
-                            a.set(0.0, i, j);
-                        }
-                    }
                 }
+                double val = alpha.get(t, j);
+                val *= b.get(j, obs[t]);
+                alpha.set(val, t, j);
+                c[t] += alpha.get(t, j);
+            }
 
-                //Set pi to start in state 0
-                for (int i = 0; i < numStates; i++) {
-                    pi[i] = i == 0 ? 1 : 0;
+            //Set the scaling coeff
+            c[t] = 1.0 / c[t];
+
+            //Scale Alpha
+            for (j = 0; j < N; j++) {
+                double val = alpha.get(t, j);
+                val *= c[t];
+                alpha.set(val, t, j);
+            }
+        }
+
+        if (estimatedStates.length != T) {
+            estimatedStates = new int[T];
+        }
+        for (t = 0; t < T; t++) {
+            double maxValue = 0;
+            for (i = 0; i < N; i++) {
+                if (alpha.get(t, i) > maxValue) {
+                    maxValue = alpha.get(t, i);
+                    estimatedStates[t] = i;
                 }
-                break;
-            default:
-                System.err.println("HMM_ERROR: Unkown model type!");
-                return false;
-        }
-
-        //Normalize the matrices
-        double sum = 0.0;
-        for (int i = 0; i < numStates; i++) {
-            sum = 0.0;
-            for (int j = 0; j < numStates; j++) {
-                sum += a.get(i, j);
-            }
-            for (int j = 0; j < numStates; j++) {
-                double val = a.get(i, j);
-                val /= sum;
-                a.set(val, i, j);
-            }
-        }
-        for (int i = 0; i < numStates; i++) {
-            sum = 0.0;
-            for (int k = 0; k < numSymbols; k++) {
-                sum += b.get(i, k);
-            }
-            for (int k = 0; k < numSymbols; k++) {
-                double val = b.get(i, k);
-                val /= sum;
-                b.set(val, i, k);
             }
         }
 
-        //Normalise pi
-        sum = 0.0;
-        for (int i = 0; i < numStates; i++) {
-            sum += pi[i];
+        //Termination
+        double loglikelihood = 0.0;
+        for (t = 0; t < T; t++) {
+            loglikelihood += Math.log(c[t]);
         }
-        for (int i = 0; i < numStates; i++) {
-            pi[i] /= sum;
-        }
-
-        return true;
-    }
-
-    private double getRandomNumberUniform(double minRange, double maxRange) {
-        return (Math.random() * (maxRange - minRange)) + minRange;
+        return -loglikelihood; //Return the negative log likelihood
     }
 
     boolean train(int[][] trainingData) {
@@ -222,7 +253,7 @@ public class HiddenMarkovModel implements Serializable{
         return true;
     }
 
-    private boolean train_(int[][] obs, int maxIter) {
+    boolean train_(int[][] obs, int maxIter) {
 
         int numObs = obs.length;
         int i, j, k, t = 0;
@@ -431,100 +462,8 @@ public class HiddenMarkovModel implements Serializable{
         return true;
     }
 
-    double predict(int[] obs) {
-        final int N = numStates;
-        final int T = obs.length;
-        int t, i, j = 0;
-        MatrixDouble alpha = new MatrixDouble(T, numStates);
-        double[] c = new double[T];
-
-        ////////////////// Run the forward algorithm ////////////////////////
-        //Step 1: Init at t=0
-        t = 0;
-        c[t] = 0.0;
-        for (i = 0; i < N; i++) {
-            double val = pi[i] * b.get(i, obs[t]);
-            alpha.set(val, t, i);
-            c[t] += val;
-        }
-
-        //Set the inital scaling coeff
-        c[t] = 1.0 / c[t];
-
-        //Scale alpha
-        for (i = 0; i < N; i++) {
-            double val = alpha.get(t, i);
-            val *= c[t];
-            alpha.set(val, t, i);
-        }
-
-        //Step 2: Induction
-        for (t = 1; t < T; t++) {
-            c[t] = 0.0;
-            for (j = 0; j < N; j++) {
-                alpha.set(0.0, t, j);
-                for (i = 0; i < N; i++) {
-                    double val = alpha.get(t, j);
-                    val += alpha.get(t - 1, i) * a.get(i, j);
-                    alpha.set(val, t, j);
-
-                }
-                double val = alpha.get(t, j);
-                val *= b.get(j, obs[t]);
-                alpha.set(val, t, j);
-                c[t] += alpha.get(t, j);
-            }
-
-            //Set the scaling coeff
-            c[t] = 1.0 / c[t];
-
-            //Scale Alpha
-            for (j = 0; j < N; j++) {
-                double val = alpha.get(t, j);
-                val *= c[t];
-                alpha.set(val, t, j);
-            }
-        }
-
-        if (estimatedStates.length != T) {
-            estimatedStates = new int[T];
-        }
-        for (t = 0; t < T; t++) {
-            double maxValue = 0;
-            for (i = 0; i < N; i++) {
-                if (alpha.get(t, i) > maxValue) {
-                    maxValue = alpha.get(t, i);
-                    estimatedStates[t] = i;
-                }
-            }
-        }
-
-        //Termination
-        double loglikelihood = 0.0;
-        for (t = 0; t < T; t++) {
-            loglikelihood += Math.log(c[t]);
-        }
-        return -loglikelihood; //Return the negative log likelihood
-    }
-
     private boolean forwardBackward(HMMTrainingObject hmm, int[] obs) {
-//        /* DEBUG! */
-//        System.out.print("====== FORWARDBACKWARD=====\n");
-//        System.out.print("Start state: \n");
-//        System.out.print("alpha: \n");
-//        hmm.alpha.print();
-//        System.out.print("beta: \n");
-//        hmm.beta.print();
-//        System.out.print("c: \n");
-//        for (int z = 0; z < hmm.c.length; z++) {
-//            System.out.print(hmm.c[z] + "\t");
-//        }
-//        System.out.print("\npk: " + hmm.pk);
-//        System.out.print("obs: \n");
-//        for (int z = 0; z < obs.length; z++) {
-//            System.out.print(obs[z] + "\t");
-//        }
-//
+
         final int N = numStates;
         final int T = obs.length;
         int t, i, j = 0;
@@ -619,76 +558,102 @@ public class HiddenMarkovModel implements Serializable{
                 hmm.beta.set(val, t, i);
             }
         }
-//        /* DEBUG! */
-//        System.out.print("End state: \n");
-//        System.out.print("alpha: \n");
-//        hmm.alpha.print();
-//        System.out.print("beta: \n");
-//        hmm.beta.print();
-//        System.out.print("c: \n");
-//        for (int z = 0; z < hmm.c.length; z++) {
-//            System.out.print(hmm.c[z] + "\t");
-//        }
-//        System.out.print("\npk: " + hmm.pk);
-//        System.out.print("obs: \n");
-//        for (int z = 0; z < obs.length; z++) {
-//            System.out.print(obs[z] + "\t");
-//        }
-//        try {
-//            Thread.sleep(2000);
-//        } catch (InterruptedException ex) {
-//            Logger.getLogger(HiddenMarkovModel.class.getName()).log(Level.SEVERE, null, ex);
-//        }
 
         return true;
 
     }
 
-    private void printMatrices() {
-        System.out.println("A: ");
+    private boolean randomizeMatrices(int numStates, int numSymbols) {
+        //Set the model as untrained as everything will now be reset
+        modelTrained = false;
+        logLikelihood = 0.0;
+
+        //Set the new state and symbol size
+        this.numStates = numStates;
+        this.numSymbols = numSymbols;
+        a.resize(numStates, numStates);
+        b.resize(numStates, numSymbols);
+        pi = new double[numStates];
+
+        //Fill Transition and Symbol Matrices randomly
+        //It's best to choose values in the range [0.9 1.1] rather than [0 1]
+        //That way, no single value will get too large or too small a weight when the values are normalized
         for (int i = 0; i < a.getNumRows(); i++) {
             for (int j = 0; j < a.getNumCols(); j++) {
-                System.out.print(a.get(i, j) + "\t");
+                a.set(getRandomNumberUniform(0.9, 1), i, j);
             }
-            System.out.println();
         }
 
-        System.out.println("B: ");
         for (int i = 0; i < b.getNumRows(); i++) {
             for (int j = 0; j < b.getNumCols(); j++) {
-                System.out.print(b.get(i, j) + "\t");
-            }
-            System.out.println();
-        }
-
-        System.out.print("Pi: ");
-        for (int i = 0; i < pi.length; i++) {
-            System.out.print(pi[i] + "\t");
-        }
-        System.out.println();
-
-        //Check the weights all sum to 1
-        if (true) {
-            double sum = 0.0;
-            for (int i = 0; i < a.getNumRows(); i++) {
-                sum = 0.0;
-                for (int j = 0; j < a.getNumCols(); j++) {
-                    sum += a.get(i, j);
-                }
-                if (sum <= 0.99 || sum >= 1.01) {
-                    System.err.println("WARNING: A Row " + i + " Sum: " + sum);
-                }
-            }
-
-            for (int i = 0; i < b.getNumRows(); i++) {
-                sum = 0.0;
-                for (int j = 0; j < b.getNumCols(); j++) {
-                    sum += b.get(i, j);
-                }
-                if (sum <= 0.99 || sum >= 1.01) {
-                    System.err.println("WARNING: B Row " + i + " Sum: " + sum);
-                }
+                b.set(getRandomNumberUniform(0.9, 1), i, j);
             }
         }
+
+        //Randomise pi
+        for (int i = 0; i < numStates; i++) {
+            pi[i] = getRandomNumberUniform(0.9, 1);
+        }
+
+        //Set any raints on the model
+        switch (modelType) {
+            case ERGODIC:
+                //Don't need todo anything
+                break;
+            case LEFTRIGHT:
+                //Set the state transitions raints
+                for (int i = 0; i < numStates; i++) {
+                    for (int j = 0; j < numStates; j++) {
+                        if ((j < i) || (j > i + delta)) {
+                            a.set(0.0, i, j);
+                        }
+                    }
+                }
+
+                //Set pi to start in state 0
+                for (int i = 0; i < numStates; i++) {
+                    pi[i] = i == 0 ? 1 : 0;
+                }
+                break;
+            default:
+                System.err.println("HMM_ERROR: Unkown model type!");
+                return false;
+        }
+
+        //Normalize the matrices
+        double sum = 0.0;
+        for (int i = 0; i < numStates; i++) {
+            sum = 0.0;
+            for (int j = 0; j < numStates; j++) {
+                sum += a.get(i, j);
+            }
+            for (int j = 0; j < numStates; j++) {
+                double val = a.get(i, j);
+                val /= sum;
+                a.set(val, i, j);
+            }
+        }
+        for (int i = 0; i < numStates; i++) {
+            sum = 0.0;
+            for (int k = 0; k < numSymbols; k++) {
+                sum += b.get(i, k);
+            }
+            for (int k = 0; k < numSymbols; k++) {
+                double val = b.get(i, k);
+                val /= sum;
+                b.set(val, i, k);
+            }
+        }
+
+        //Normalise pi
+        sum = 0.0;
+        for (int i = 0; i < numStates; i++) {
+            sum += pi[i];
+        }
+        for (int i = 0; i < numStates; i++) {
+            pi[i] /= sum;
+        }
+
+        return true;
     }
 }

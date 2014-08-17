@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package DataStructures;
 
 import Util.ClassTracker;
@@ -15,32 +10,31 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 /**
- *
- * @author Пользователь
+ * The TimeSeriesClassificationData is the main data structure for recording,
+ * labeling, managing, saving, and loading training data for supervised temporal
+ * learning problems. TimeSeriesClassificationData sample will
+ * consist of an N dimensional time series of length M. The length of each time
+ * series sample (i.e. M) can be different for each datum in the dataset.
  */
 public class TimeSeriesClassificationData {
 
-    String datasetName = "NOT_SET";                      ///< The name of the dataset
-    String infoText = "";                             ///< Some infoText about the dataset
-    int numDimensions = 0;			   ///< The number of dimensions in the dataset
+    String datasetName = "NOT_SET";                                ///< The name of the dataset
+    String infoText = "";                                          ///< Some infoText about the dataset
+    int numDimensions = 0;                                         ///< The number of dimensions in the dataset
 
-    int totalNumSamples = 0;                               ///< The total number of samples in the dataset
-    int kFoldValue;                                    ///< The number of folds the dataset has been spilt into for cross valiation
+    int totalNumSamples = 0;                                       ///< The total number of samples in the dataset
+    int kFoldValue;                                                ///< The number of folds the dataset has been spilt into for cross valiation
     boolean crossValidationSetup = false;                          ///< A flag to show if the dataset is ready for cross validation
     boolean useExternalRanges = false;                             ///< A flag to show if the dataset should be scaled using the externalRanges values
     boolean allowNullGestureClass = false;                         ///< A flag that enables/disables a user from adding new samples with a class label matching the default null gesture label
 
     ArrayList<MinMax> externalRanges
-            = new ArrayList<MinMax>();                      ///< A ArrayList containing a set of externalRanges set by the user
+            = new ArrayList<MinMax>();                             ///< A ArrayList containing a set of externalRanges set by the user
     ArrayList<ClassTracker> classTracker
-            = new ArrayList<ClassTracker>();                  ///< A ArrayList of ClassTracker, which keeps track of the number of samples of each class
+            = new ArrayList<ClassTracker>();                       ///< A ArrayList of ClassTracker, which keeps track of the number of samples of each class
     ArrayList<TimeSeriesClassificationSample> data
-            = new ArrayList<TimeSeriesClassificationSample>();        ///< The labelled time series classification data
-    // ArrayList<ArrayList<int>> crossValidationIndexs;         ///< A ArrayList to hold the indexs of the dataset for the cross validation
+            = new ArrayList<TimeSeriesClassificationSample>();     ///< The labelled time series classification data
 
-//    DebugLog debugLog;                                      ///< Default debugging log
-//    ErrorLog errorLog;                                      ///< Default error log
-//    WarningLog warningLog;                                  ///< Default warning log
     /**
      * Constructor, sets the name of the dataset and the number of dimensions of
      * the training data. The name of the dataset should not contain any spaces.
@@ -52,22 +46,26 @@ public class TimeSeriesClassificationData {
      * @param String infoText: some info about the data in this dataset, this
      * can contain spaces
      */
-    //const int numDimensions=0,const String datasetName = "NOT_SET",const String infoText = "")
     public TimeSeriesClassificationData(final int numDimensions, final String datasetName, final String infoText) {
-//        debugLog.setProceedingText("[DEBUG TSCD]");
-//        errorLog.setProceedingText("[ERROR TSCD]");
-//        warningLog.setProceedingText("[WARNING TSCD]");
         this.numDimensions = numDimensions;
         this.datasetName = datasetName;
         this.infoText = infoText;
     }
 
+    /**
+     * Constructor, sets the number of dimensions of the training data. The name
+     * of the dataset should not contain any spaces.
+     *
+     * @param int numDimensions: the number of dimensions of the training data,
+     * should be an unsigned integer greater than 0
+     */
     public TimeSeriesClassificationData(int numDimensions) {
-        //TimeSeriesClassificationData(numDimensions, "NOT_SET", "");
-
         this.numDimensions = numDimensions;
     }
 
+    /**
+     * Default constructor
+     */
     public TimeSeriesClassificationData() {
 
     }
@@ -77,8 +75,8 @@ public class TimeSeriesClassificationData {
      * index i. It is up to the user to ensure that i is within the range of [0
      * totalNumSamples-1]
      *
-     * @param const int &i: the index of the training sample you want to access.
-     * Must be within the range of [0 totalNumSamples-1]
+     * @param int i: the index of the training sample you want to access. Must
+     * be within the range of [0 totalNumSamples-1]
      * @return a reference to the i'th TimeSeriesClassificationSample
      */
     public TimeSeriesClassificationSample get(final int i) {
@@ -86,25 +84,41 @@ public class TimeSeriesClassificationData {
     }
 
     /**
-     * Gets the number of samples in the classification data across all the
-     * classes.
+     * Returns the all the data with the class label set by classLabel. The
+     * classLabel should be a valid classLabel, otherwise the dataset returned
+     * will be empty.
      *
-     * @return an int representing the total number of samples in the
-     * classification data
+     * @param const UINT classLabel: the class label of the class you want the
+     * data for
+     * @return returns a dataset containing all the data with the matching
+     * classLabel
      */
-    public int getNumSamples() {
-        return totalNumSamples;
+    public TimeSeriesClassificationData getClassData(int classLabel) {
+        TimeSeriesClassificationData classData = new TimeSeriesClassificationData(numDimensions);
+        for (int x = 0; x < totalNumSamples; x++) {
+            if (data.get(x).getClassLabel() == classLabel) {
+                classData.addSample(classLabel, data.get(x).getData());
+            }
+        }
+        return classData;
     }
 
     /**
-     * Gets the number of classes.
+     * Gets the class tracker for each class in the dataset.
      *
-     * @return an int representing the number of classes
+     * @return a vector of ClassTracker, one for each class in the dataset
      */
-    public int getNumClasses() {
-        return classTracker.size();
+    public ArrayList<ClassTracker> getClassTracker() {
+        return classTracker;
     }
 
+    /**
+     * Gets the data as a MatrixDouble. This returns just the data, not the
+     * labels. This will be an M by N MatrixDouble, where M is the number of
+     * samples and N is the number of dimensions.
+     *
+     * @return a MatrixDouble containing the data from the current dataset.
+     */
     public MatrixDouble getDataAsMatrixDouble() {
 
         //Count how many samples are in the entire dataset
@@ -133,6 +147,42 @@ public class TimeSeriesClassificationData {
         return matrixData;
     }
 
+    /**
+     * Gets the number of classes.
+     *
+     * @return an int representing the number of classes
+     */
+    public int getNumClasses() {
+        return classTracker.size();
+    }
+
+    /**
+     * Gets the number of dimensions of the labelled classification data.
+     *
+     * @return an unsigned int representing the number of dimensions in the
+     * classification data
+     */
+    public int getNumDimensions() {
+        return numDimensions;
+    }
+
+    /**
+     * Gets the number of samples in the classification data across all the
+     * classes.
+     *
+     * @return an int representing the total number of samples in the
+     * classification data
+     */
+    public int getNumSamples() {
+        return totalNumSamples;
+    }
+
+    /**
+     * Gets the ranges of the classification data.
+     *
+     * @return a vector of minimum and maximum values for each dimension of the
+     * data
+     */
     private ArrayList<MinMax> getRanges() {
         if (useExternalRanges) {
             return externalRanges;
@@ -148,7 +198,6 @@ public class TimeSeriesClassificationData {
                 ranges.get(j).minValue = data.get(0).getData(0, 0);
                 ranges.get(j).maxValue = data.get(0).getData(0, 0);
 
-                //ranges.add(new MinMax(data.get(0).getData(0, 0), data.get(0).getData(0, 0)));
                 for (int x = 0; x < totalNumSamples; x++) {
                     for (int i = 0; i < data.get(x).getLength(); i++) {
                         if (data.get(x).getData(i, j) < ranges.get(j).minValue) {
@@ -162,6 +211,94 @@ public class TimeSeriesClassificationData {
             }
         }
         return ranges;
+    }
+
+    /**
+     * Sets the number of dimensions in the training data. This should be an
+     * unsigned integer greater than zero. This will clear any previous training
+     * data and counters. This function needs to be called before any new
+     * samples can be added to the dataset, unless the numDimensions variable
+     * was set in the constructor or some data was already loaded from a file
+     *
+     * @param const UINT numDimensions: the number of dimensions of the training
+     * data. Must be an unsigned integer greater than zero
+     * @return true if the number of dimensions was correctly updated, false
+     * otherwise
+     */
+    public boolean setNumDimensions(final int numDimensions) {
+        if (numDimensions > 0) {
+            //Clear any previous training data
+            clear();
+
+            //Set the dimensionality of the training data
+            this.numDimensions = numDimensions;
+
+            useExternalRanges = false;
+            externalRanges.clear();
+
+            return true;
+        }
+
+        System.err.println("setNumDimensions(int numDimensions) - The number of dimensions of the dataset must be greater than zero!");
+        return false;
+    }
+
+    /**
+     * Adds a new labelled timeseries sample to the dataset. The dimensionality
+     * of the sample should match the number of dimensions in the dataset. The
+     * class label should be greater than zero (as zero is used as the default
+     * null rejection class label).
+     *
+     * @param int classLabel: the class label of the corresponding sample
+     * @param MatrixDouble trainingSample: the new sample you want to add to the
+     * dataset. The dimensionality of this sample (i.e. Matrix columns) should
+     * match the number of dimensions in the dataset, the rows of the Matrix
+     * represent time and do not have to be any specific length
+     * @return true if the sample was correctly added to the dataset, false
+     * otherwise
+     */
+    public boolean addSample(int classLabel, MatrixDouble trainingSample) {
+        if (trainingSample.getNumCols() != numDimensions) {
+            System.err.println("addSample(int classLabel, MatrixDouble trainingSample) - The dimensionality of the training sample (" + trainingSample.getNumCols() + ") does not match that of the dataset (" + numDimensions + ")");
+            return false;
+        }
+
+        //The class label must be greater than zero (as zero is used for the null rejection class label
+        if (classLabel == 0 && !allowNullGestureClass) {
+            System.err.println("addSample(int classLabel, MatrixDouble sample) - the class label can not be 0!");
+            return false;
+        }
+
+        TimeSeriesClassificationSample newSample = new TimeSeriesClassificationSample(classLabel, trainingSample);
+        data.add(newSample);
+        totalNumSamples++;
+
+        if (classTracker.size() == 0) {
+            ClassTracker tracker = new ClassTracker(classLabel, 1);
+            classTracker.add(tracker);
+        } else {
+            boolean labelFound = false;
+            for (int i = 0; i < classTracker.size(); i++) {
+                if (classLabel == classTracker.get(i).classLabel) {
+                    classTracker.get(i).counter++;
+                    labelFound = true;
+                    break;
+                }
+            }
+            if (!labelFound) {
+                ClassTracker tracker = new ClassTracker(classLabel, 1);
+                classTracker.add(tracker);
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Clears any previous training data and counters
+     */
+    public void clear() {
+        totalNumSamples = 0;
+        data.clear();
     }
 
     /**
@@ -311,7 +448,6 @@ public class TimeSeriesClassificationData {
             }
             timeSeriesLength = Integer.parseInt(word.split(" ")[1]);
 
-            //System.out.println(timeSeriesLength);
             word = reader.readLine();
             if (!word.contains("TimeSeriesData: ")) {
                 System.err.println("loadDatasetFromFile(String filename) - Failed to find TimeSeriesData!");
@@ -333,11 +469,18 @@ public class TimeSeriesClassificationData {
             data.get(x).setTrainingSample(classLabel, trainingExample);
         }
 
-        //System.out.println("In TimeSeries loadDattaSet.\n DataSet: " + this);
         reader.close();
         return true;
     }
 
+    /**
+     * Prints the dataset info (such as its name and infoText) and the stats
+     * (such as the number of examples, number of dimensions, number of classes,
+     * etc.) to the std out.
+     *
+     * @return returns true if the dataset info and stats were printed
+     * successfully, false otherwise
+     */
     public boolean printStats() {
         System.out.println("DatasetName:\t" + datasetName);
         System.out.println("DatasetInfo:\t" + infoText);
@@ -368,97 +511,4 @@ public class TimeSeriesClassificationData {
 
         return true;
     }
-
-    public void clear() {
-        totalNumSamples = 0;
-        data.clear();
-        //classTracker.clear();
-    }
-
-    public boolean setNumDimensions(final int numDimensions) {
-        if (numDimensions > 0) {
-            //Clear any previous training data
-            clear();
-
-            //Set the dimensionality of the training data
-            this.numDimensions = numDimensions;
-
-            useExternalRanges = false;
-            externalRanges.clear();
-
-            return true;
-        }
-
-        System.err.println("setNumDimensions(int numDimensions) - The number of dimensions of the dataset must be greater than zero!");
-        return false;
-    }
-
-    /**
-     * Adds a new labelled timeseries sample to the dataset. The dimensionality
-     * of the sample should match the number of dimensions in the dataset. The
-     * class label should be greater than zero (as zero is used as the default
-     * null rejection class label).
-     *
-     * @param int classLabel: the class label of the corresponding sample
-     * @param MatrixDouble trainingSample: the new sample you want to add to the
-     * dataset. The dimensionality of this sample (i.e. Matrix columns) should
-     * match the number of dimensions in the dataset, the rows of the Matrix
-     * represent time and do not have to be any specific length
-     * @return true if the sample was correctly added to the dataset, false
-     * otherwise
-     */
-    public boolean addSample(int classLabel, MatrixDouble trainingSample) {
-        if (trainingSample.getNumCols() != numDimensions) {
-            System.err.println("addSample(int classLabel, MatrixDouble trainingSample) - The dimensionality of the training sample (" + trainingSample.getNumCols() + ") does not match that of the dataset (" + numDimensions + ")");
-            return false;
-        }
-
-        //The class label must be greater than zero (as zero is used for the null rejection class label
-        if (classLabel == 0 && !allowNullGestureClass) {
-            System.err.println("addSample(int classLabel, MatrixDouble sample) - the class label can not be 0!");
-            return false;
-        }
-
-        TimeSeriesClassificationSample newSample = new TimeSeriesClassificationSample(classLabel, trainingSample);
-        data.add(newSample);
-        totalNumSamples++;
-
-        if (classTracker.size() == 0) {
-            ClassTracker tracker = new ClassTracker(classLabel, 1);
-            classTracker.add(tracker);
-        } else {
-            boolean labelFound = false;
-            for (int i = 0; i < classTracker.size(); i++) {
-                if (classLabel == classTracker.get(i).classLabel) {
-                    classTracker.get(i).counter++;
-                    labelFound = true;
-                    break;
-                }
-            }
-            if (!labelFound) {
-                ClassTracker tracker = new ClassTracker(classLabel, 1);
-                classTracker.add(tracker);
-            }
-        }
-        return true;
-    }
-
-    public int getNumDimensions() {
-        return numDimensions;
-    }
-
-    public ArrayList<ClassTracker> getClassTracker() {
-        return classTracker;
-    }
-
-    public TimeSeriesClassificationData getClassData(int classLabel) {
-        TimeSeriesClassificationData classData = new TimeSeriesClassificationData(numDimensions);
-        for (int x = 0; x < totalNumSamples; x++) {
-            if (data.get(x).getClassLabel() == classLabel) {
-                classData.addSample(classLabel, data.get(x).getData());
-            }
-        }
-        return classData;
-    }
-
 }

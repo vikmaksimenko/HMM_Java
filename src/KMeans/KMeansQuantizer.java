@@ -1,20 +1,18 @@
 package KMeans;
 
-import DataStructures.TimeSeriesClassificationData;
 import Util.MatrixDouble;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 /**
- *
- * @author Пользователь
+ * The KMeansQuantizer module quantizes the N-dimensional input vector to a
+ * 1-dimensional discrete value. This value will be between [0 K-1], where K is
+ * the number of clusters used to create the quantization model. Before you use
+ * the KMeansQuantizer, you need to train a quantization model. To do this, you
+ * select the number of clusters you want your quantizer to have and then give
+ * it any training data as the MatrixDouble
  */
-public class KMeansQuantizer implements Serializable {//extends FeatureExtraction{
+public class KMeansQuantizer implements Serializable {
 
     protected boolean trained = false;
     protected boolean featureDataReady = false;
@@ -31,8 +29,6 @@ public class KMeansQuantizer implements Serializable {//extends FeatureExtractio
     protected ArrayList<Double> featureVector = new ArrayList<Double>();
     protected ArrayList<Double> quantizationDistances = new ArrayList<Double>();
 
-    //protected VectorDouble quantizationDistances;
-    //static RegisterFeatureExtractionModule< KMeansQuantizer > registerModule;
     /**
      * Default constructor. Initalizes the KMeansQuantizer, setting the number
      * of input dimensions and the number of clusters to use in the quantization
@@ -44,14 +40,33 @@ public class KMeansQuantizer implements Serializable {//extends FeatureExtractio
         this.numClusters = numClusters;
         classType = "KMeansQuantizer";
         featureExtractionType = classType;
-
         featureVector.add(0.0);  // КОСТЫЛЬ!!!
-//
-//        debugLog.setProceedingText("[DEBUG KMeansQuantizer]");
-//        errorLog.setProceedingText("[ERROR KMeansQuantizer]");
-//        warningLog.setProceedingText("[WARNING KMeansQuantizer]");
     }
 
+    public ArrayList<Double> getFeatureVector() {
+        return featureVector;
+    }
+
+    /**
+     * Sets the FeatureExtraction clear function, overwriting the base
+     * FeatureExtraction function.
+     *
+     * @return true if the instance was reset, false otherwise
+     */
+    public boolean clear() {
+        clusters = null;
+        quantizationDistances.clear();
+
+        return true;
+    }
+
+    /**
+     * Quantizes the input value using the quantization model. The quantization
+     * model must be trained first before you call this function.
+     *
+     * @param const VectorDouble &inputVector: the vector you want to quantize
+     * @return returns the quantized value
+     */
     public int quantize(ArrayList<Double> inputVector) {
         if (!trained) {
             System.err.println("computeFeatures(const VectorDouble &inputVector) - The quantizer has not been trained!");
@@ -90,6 +105,14 @@ public class KMeansQuantizer implements Serializable {//extends FeatureExtractio
         return quantizedValue;
     }
 
+    /**
+     * Trains the quantization model using the training dataset.
+     *
+     * @param MatrixDouble &trainingData: the training dataset that will be used
+     * to train the quantizer
+     * @return returns true if the quantizer was trained successfully, false
+     * otherwise
+     */
     public boolean train(MatrixDouble trainingData) {
         //Clear any previous model
         clear();
@@ -102,11 +125,6 @@ public class KMeansQuantizer implements Serializable {//extends FeatureExtractio
         kmeans.setMinNumEpochs(minNumEpochs);
         kmeans.setMaxNumEpochs(maxNumEpochs);
 
-        /* DEBUG */
-//    System.out.println("numClusters: " + numClusters );
-//    System.out.println("minChange: " + minChange );
-//    System.out.println("minNumEpochs: " + minNumEpochs );
-//    System.out.println("maxNumEpochs: " + maxNumEpochs );
         if (!kmeans.train(trainingData)) {
             System.err.println("train_(MatrixDouble &trainingData) - Failed to train quantizer!");
             return false;
@@ -122,16 +140,4 @@ public class KMeansQuantizer implements Serializable {//extends FeatureExtractio
 
         return true;
     }
-
-    private boolean clear() {
-        clusters = null;//.clear();
-        quantizationDistances.clear();
-
-        return true;
-    }
-
-    public ArrayList<Double> getFeatureVector() {
-        return featureVector;
-    }
-
 }
