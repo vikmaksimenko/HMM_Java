@@ -1,6 +1,6 @@
 GRT_LABELLED_TIME_SERIES_CLASSIFICATION_DATA_FILE_V1.0
 DatasetName: ACCELERATORData
-InfoText: This dataset contains 7 ACCELERATOR timeseries gestures: 1, 2, 3, 4, 5, 6, 7.  There are 8 recording of each gesture. 1 is class 1, 2 is class 2, 3 is class 3, 4 is class 4, 5 is class 5, 6 is class 6, 7 is class 7.
+InfoText: This dataset contains 7 ACCELERATOR timeseries gestures: circle, clock, pi, shield, triangle, v, z.  There are 8 recording of each gesture. circle is class 1, clock is class 2, pi is class 3, shield is class 4, triangle is class 5, v is class 6, z is class 7.
 NumDimensions: 3
 TotalNumTrainingExamples: 1
 NumberOfClasses: 1
