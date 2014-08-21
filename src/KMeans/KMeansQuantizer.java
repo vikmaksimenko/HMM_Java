@@ -1,18 +1,24 @@
 package KMeans;
 
+import DataStructures.TimeSeriesClassificationData;
 import Util.MatrixDouble;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 
-/**
- * The KMeansQuantizer module quantizes the N-dimensional input vector to a
- * 1-dimensional discrete value. This value will be between [0 K-1], where K is
- * the number of clusters used to create the quantization model. Before you use
- * the KMeansQuantizer, you need to train a quantization model. To do this, you
- * select the number of clusters you want your quantizer to have and then give
- * it any training data as the MatrixDouble
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
  */
-public class KMeansQuantizer implements Serializable {
+/**
+ *
+ * @author Пользователь
+ */
+public class KMeansQuantizer implements Serializable {//extends FeatureExtraction{
 
     protected boolean trained = false;
     protected boolean featureDataReady = false;
@@ -29,6 +35,8 @@ public class KMeansQuantizer implements Serializable {
     protected ArrayList<Double> featureVector = new ArrayList<Double>();
     protected ArrayList<Double> quantizationDistances = new ArrayList<Double>();
 
+    //protected VectorDouble quantizationDistances;
+    //static RegisterFeatureExtractionModule< KMeansQuantizer > registerModule;
     /**
      * Default constructor. Initalizes the KMeansQuantizer, setting the number
      * of input dimensions and the number of clusters to use in the quantization
@@ -40,33 +48,14 @@ public class KMeansQuantizer implements Serializable {
         this.numClusters = numClusters;
         classType = "KMeansQuantizer";
         featureExtractionType = classType;
+
         featureVector.add(0.0);  // КОСТЫЛЬ!!!
+//
+//        debugLog.setProceedingText("[DEBUG KMeansQuantizer]");
+//        errorLog.setProceedingText("[ERROR KMeansQuantizer]");
+//        warningLog.setProceedingText("[WARNING KMeansQuantizer]");
     }
 
-    public ArrayList<Double> getFeatureVector() {
-        return featureVector;
-    }
-
-    /**
-     * Sets the FeatureExtraction clear function, overwriting the base
-     * FeatureExtraction function.
-     *
-     * @return true if the instance was reset, false otherwise
-     */
-    public boolean clear() {
-        clusters = null;
-        quantizationDistances.clear();
-
-        return true;
-    }
-
-    /**
-     * Quantizes the input value using the quantization model. The quantization
-     * model must be trained first before you call this function.
-     *
-     * @param const VectorDouble &inputVector: the vector you want to quantize
-     * @return returns the quantized value
-     */
     public int quantize(ArrayList<Double> inputVector) {
         if (!trained) {
             System.err.println("computeFeatures(const VectorDouble &inputVector) - The quantizer has not been trained!");
@@ -105,14 +94,6 @@ public class KMeansQuantizer implements Serializable {
         return quantizedValue;
     }
 
-    /**
-     * Trains the quantization model using the training dataset.
-     *
-     * @param MatrixDouble &trainingData: the training dataset that will be used
-     * to train the quantizer
-     * @return returns true if the quantizer was trained successfully, false
-     * otherwise
-     */
     public boolean train(MatrixDouble trainingData) {
         //Clear any previous model
         clear();
@@ -125,6 +106,11 @@ public class KMeansQuantizer implements Serializable {
         kmeans.setMinNumEpochs(minNumEpochs);
         kmeans.setMaxNumEpochs(maxNumEpochs);
 
+        /* DEBUG */
+//    System.out.println("numClusters: " + numClusters );
+//    System.out.println("minChange: " + minChange );
+//    System.out.println("minNumEpochs: " + minNumEpochs );
+//    System.out.println("maxNumEpochs: " + maxNumEpochs );
         if (!kmeans.train(trainingData)) {
             System.err.println("train_(MatrixDouble &trainingData) - Failed to train quantizer!");
             return false;
@@ -137,6 +123,93 @@ public class KMeansQuantizer implements Serializable {
         featureVector.ensureCapacity(numOutputDimensions);
         clusters = kmeans.getClusters();
         quantizationDistances.ensureCapacity(numClusters);
+
+        return true;
+    }
+
+    private boolean clear() {
+        clusters = null;//.clear();
+        quantizationDistances.clear();
+
+        return true;
+    }
+
+    public ArrayList<Double> getFeatureVector() {
+        return featureVector;
+    }
+
+    public boolean loadModelFromFile(String file) throws IOException {
+
+        initialized = false;
+        numClusters = 0;
+        clusters.clear();
+        quantizationDistances.clear();
+
+        BufferedReader reader;
+
+        try {
+            reader = new BufferedReader(new FileReader(file));
+        } catch (FileNotFoundException ex) {
+            System.err.println("loadDatasetFromFile(String filename) - FILE NOT OPEN!");
+            return false;
+        }
+
+        String word;
+        double value;
+
+        //Find the file type header
+        word = reader.readLine();
+        if (!word.contains("KMEANS_QUANTIZER_FILE_V1.0")) {
+            System.err.println("loadModelFromFile(fstream &file) - Invalid file format!");
+            return false;
+        }
+
+        numInputDimensions = 3;
+        numOutputDimensions = 1;
+        minNumEpochs = 0;
+        maxNumEpochs = 100;
+        minChange = 1e-005;
+
+//        //Second, you should load the base feature extraction settings to the file
+//        if (!loadBaseSettingsFromFile(file)) {
+//            System.err.println("loadModelFromFile(fstream &file) - Failed to load base feature extraction settings from file!" );
+//            return false;
+//        }
+        word = reader.readLine();
+        if (!word.contains("QuantizerTrained:")) {
+            System.err.println("loadModelFromFile(fstream &file) - Failed to load QuantizerTrained!");
+            return false;
+        }
+        trained = (Integer.parseInt(word.split(" ")[1]) == 1);
+
+        word = reader.readLine();
+        if (!word.contains("NumClusters:")) {
+            System.err.println("loadModelFromFile(fstream &file) - Failed to load NumClusters!");
+            return false;
+        }
+        numClusters = Integer.parseInt(word.split(" ")[1]);
+
+        if (trained) {
+            clusters.resize(numClusters, numInputDimensions);
+            word = reader.readLine();
+            if (!word.contains("Clusters:")) {
+                System.err.println("loadModelFromFile(fstream &file) - Failed to load Clusters!");
+                return false;
+            }
+
+            String[] buf;
+            for (int k = 0; k < numClusters; k++) {
+                word = reader.readLine();
+                buf = word.split("\t");
+                for (int j = 0; j < numInputDimensions; j++) {
+                    clusters.set(Double.parseDouble(buf[j]), k, j);
+                }
+            }
+
+            initialized = true;
+            featureDataReady = false;
+            quantizationDistances.ensureCapacity(numClusters);
+        }
 
         return true;
     }

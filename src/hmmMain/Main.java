@@ -46,7 +46,7 @@ public class Main {
         } catch (IOException ex) {
             System.err.println("ERROR: Failed to load training data! " + ex);
         }
-  
+
         //Quantize the test data
         TimeSeriesClassificationData quantizedTestData = new TimeSeriesClassificationData(1);
 
